@@ -191,25 +191,51 @@ export default function AppLayout({ children }) {
           </div>
         )}
 
-        {/* Top Global Utility Bar: Language, Font Controls, and Notifications */}
+        {/* Top Global Utility Bar: Role Badge, Language, Font Controls, and Notifications */}
         <div
           data-tour="top-utility-bar"
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems: "center",
             gap: 16,
-            marginBottom: 16,
-            padding: "8px 16px",
+            marginBottom: 20,
+            padding: "10px 18px",
             background: "var(--pc-surface)",
-            borderRadius: 12,
+            borderRadius: 14,
             border: "1px solid var(--pc-border)",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+            boxShadow: "var(--pc-shadow-sm)",
             flexWrap: "wrap",
             position: "relative",
           }}
         >
-          {/* Notification Bell & Dropdown */}
+          {/* Active Role Indicator & Welcome */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {user?.role === "mentor" ? (
+              <span className="pc-badge pc-badge-mentor" style={{ fontSize: "12px", padding: "5px 12px" }}>
+                👨‍🏫 Academic Mentor Portal
+              </span>
+            ) : user?.role === "admin" ? (
+              <span className="pc-badge pc-badge-admin" style={{ fontSize: "12px", padding: "5px 12px" }}>
+                ⚡ Platform Admin Console
+              </span>
+            ) : user?.role === "delivery" ? (
+              <span className="pc-badge pc-badge-delivery" style={{ fontSize: "12px", padding: "5px 12px" }}>
+                🚚 Delivery Operations Console
+              </span>
+            ) : (
+              <span className="pc-badge pc-badge-student" style={{ fontSize: "12px", padding: "5px 12px" }}>
+                🎓 Student Workspace
+              </span>
+            )}
+            <span style={{ fontSize: "13px", color: "var(--pc-text-muted)" }}>
+              Welcome back, <strong style={{ color: "var(--pc-text)" }}>{user?.name || "User"}</strong>
+            </span>
+          </div>
+
+          {/* Right Utility Group */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            {/* Notification Bell & Dropdown */}
           <div ref={notifMenuRef} style={{ position: "relative" }}>
             <button
               type="button"
@@ -383,6 +409,7 @@ export default function AppLayout({ children }) {
                 </option>
               ))}
             </select>
+          </div>
           </div>
         </div>
 

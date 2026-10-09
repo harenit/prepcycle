@@ -1,11 +1,26 @@
 import { Router } from "express";
-import { register, login, getMe, updateProfile, changePassword, googleOAuthStart, googleOAuthCallback, appleOAuthStart, appleOAuthCallback } from "../controllers/authController.js";
+import {
+  register,
+  login,
+  getMe,
+  updateProfile,
+  changePassword,
+  googleOAuthStart,
+  googleOAuthCallback,
+  googleCredentialVerify,
+  appleOAuthStart,
+  appleOAuthCallback,
+} from "../controllers/authController.js";
 import { protect } from "../middleware/auth.js";
 
 const router = Router();
 
 router.get("/oauth/google", googleOAuthStart);
 router.get("/oauth/google/callback", asyncHandler(googleOAuthCallback));
+router.get("/google", googleOAuthStart);
+router.get("/google/callback", asyncHandler(googleOAuthCallback));
+router.post("/google/verify", asyncHandler(googleCredentialVerify));
+router.post("/oauth/google/verify", asyncHandler(googleCredentialVerify));
 router.get("/oauth/apple", appleOAuthStart);
 router.post("/oauth/apple/callback", asyncHandler(appleOAuthCallback));
 router.get("/oauth/apple/callback", asyncHandler(appleOAuthCallback));

@@ -815,16 +815,34 @@ function CommunicationsTab({ token }) {
           </label>
           <label>
             Recipient (Enter "all" for All Students, or Email / Phone / Student ID)
-            <input required value={testForm.recipient} onChange={(e) => setTestForm({ ...testForm, recipient: e.target.value })} placeholder="all or student1@prepcycle.test or +919876543210" />
+            <input required value={testForm.recipient} onChange={(e) => setTestForm({ ...testForm, recipient: e.target.value })} placeholder="all or mentor@prepcycle.com or +919876543210" />
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              {[
+                ["all", "👥 All Students"],
+                ["mentor@prepcycle.com", "👨‍🏫 Senior Mentor"],
+                ["mentor1@prepcycle.test", "👨‍🏫 Aptitude Mentor"],
+                ["student1@prepcycle.test", "🎓 Student 1"],
+              ].map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setTestForm({ ...testForm, recipient: val })}
+                  className="pc-btn pc-btn-small pc-btn-outline"
+                  style={{ padding: "2px 8px", fontSize: "11px" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </label>
         </div>
         <label>
           Subject / Title
-          <input value={testForm.subject} onChange={(e) => setTestForm({ ...testForm, subject: e.target.value })} placeholder="e.g. Schedule Change or New Mock Test Alert" />
+          <input value={testForm.subject} onChange={(e) => setTestForm({ ...testForm, subject: e.target.value })} placeholder="e.g. New Platform Features Available on PrepCycle" />
         </label>
         <label>
           Message Content
-          <textarea rows={2} required value={testForm.content} onChange={(e) => setTestForm({ ...testForm, content: e.target.value })} placeholder="Message text that will appear in student alerts..." />
+          <textarea rows={2} required value={testForm.content} onChange={(e) => setTestForm({ ...testForm, content: e.target.value })} placeholder="Message text that will appear in user alerts..." />
         </label>
         {msg && <div className="pc-card-note" style={{ fontWeight: 600, color: msg.includes("Error") ? "#dc2626" : "#16a34a" }}>{msg}</div>}
 
@@ -869,11 +887,20 @@ function CommunicationsTab({ token }) {
                     </a>
                   )}
                   <a
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(lastResult.recipient)}&su=${encodeURIComponent(lastResult.subject || "PrepCycle Official Notice")}&body=${encodeURIComponent(lastResult.content)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pc-btn pc-btn-small"
+                    style={{ textDecoration: "none", fontWeight: 700, background: "#ea4335", color: "#fff" }}
+                  >
+                    ✉️ Compose via Gmail Web (prepcycle@gmail.com) ↗
+                  </a>
+                  <a
                     href={`mailto:${lastResult.recipient}?subject=${encodeURIComponent(lastResult.subject || "PrepCycle Alert")}&body=${encodeURIComponent(lastResult.content)}`}
                     className="pc-btn pc-btn-small pc-btn-outline"
                     style={{ textDecoration: "none", fontWeight: 700 }}
                   >
-                    ✉️ Open in Gmail / Default Mail ↗
+                    ✉️ Open in Default Mail ↗
                   </a>
                 </>
               )}

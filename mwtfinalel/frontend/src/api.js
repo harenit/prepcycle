@@ -37,6 +37,7 @@ export const api = {
   // auth
   register: (payload) => request("/auth/register", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
+  googleVerify: (credential) => request("/auth/google/verify", { method: "POST", body: { credential } }),
   me: (token) => request("/auth/me", { token }),
   updateProfile: (token, payload) => request("/auth/profile", { method: "PUT", token, body: payload }),
   changePassword: (token, payload) => request("/auth/change-password", { method: "PUT", token, body: payload }),

@@ -166,6 +166,13 @@ export default function DeliveryDashboardPage() {
           >
             ✅ Completed Task History
           </button>
+          <a
+            href="/settings"
+            className="pc-sidebar-link"
+            style={{ textDecoration: "none" }}
+          >
+            ⚙️ Settings &amp; Appearance
+          </a>
         </div>
 
         <div className="pc-sidebar-language" style={{ padding: "0 16px 12px" }}>

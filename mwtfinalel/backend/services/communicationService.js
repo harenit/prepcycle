@@ -336,3 +336,78 @@ export async function notifyMentorSubjectCompleted({ student, mentor, examSlug, 
   return results;
 }
 
+/**
+ * Dispatches notification to mentor when an assigned student logs in for the day
+ */
+export async function notifyMentorStudentLogin({ student, mentor }) {
+  if (!mentor) return null;
+  const waNumber = (mentor.whatsappNumber || mentor.phone || "").replace(/[^0-9+]/g, "");
+  const subject = `📅 Daily Study Activity: ${student.name} is Online`;
+  const content = `Hello ${mentor.name},\n\nYour assigned student *${student.name}* (${student.studentId || student.email}) has logged into PrepCycle today for their daily preparation session on *${student.targetExam || "their exam"}*.\n\nKeep track of their live progress on your Mentor Dashboard.`;
+
+  const results = {};
+  if (waNumber) {
+    const cleanDigits = waNumber.replace(/^\+/, "");
+    const waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(content)}`;
+    results.whatsappUrl = waUrl;
+    results.whatsapp = await sendCommunication({
+      user: mentor,
+      channel: "whatsapp",
+      messageType: "mentor_daily_login_alert",
+      recipient: waNumber,
+      subject,
+      content: `${content}\nWhatsApp Link: ${waUrl}`,
+    }).catch((e) => ({ error: e.message }));
+  }
+
+  await Notification.create({
+    user: mentor._id,
+    recipient: mentor._id,
+    type: "system",
+    title: `📅 Daily Login: ${student.name}`,
+    body: `${student.name} logged into PrepCycle today to continue study for ${student.targetExam || "their exam"}.`,
+    fromName: student.name,
+    link: `/mentor?studentId=${student._id}`,
+  }).catch((e) => console.error("Mentor login notification error:", e));
+
+  return results;
+}
+
+/**
+ * Dispatches notification to mentor when an assigned student finishes a chapter
+ */
+export async function notifyMentorChapterCompleted({ student, mentor, examName, chapterName, subjectName }) {
+  if (!mentor) return null;
+  const waNumber = (mentor.whatsappNumber || mentor.phone || "").replace(/[^0-9+]/g, "");
+  const subject = `📖 Chapter Completed: ${student.name} finished ${chapterName}`;
+  const content = `Hello ${mentor.name},\n\nYour assigned student *${student.name}* (${student.studentId || student.email}) has completed all topics in chapter *${chapterName}* (${subjectName} - ${examName})!\n\nReview their performance on your Mentor Dashboard.`;
+
+  const results = {};
+  if (waNumber) {
+    const cleanDigits = waNumber.replace(/^\+/, "");
+    const waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(content)}`;
+    results.whatsappUrl = waUrl;
+    results.whatsapp = await sendCommunication({
+      user: mentor,
+      channel: "whatsapp",
+      messageType: "mentor_chapter_completed_alert",
+      recipient: waNumber,
+      subject,
+      content: `${content}\nWhatsApp Link: ${waUrl}`,
+    }).catch((e) => ({ error: e.message }));
+  }
+
+  await Notification.create({
+    user: mentor._id,
+    recipient: mentor._id,
+    type: "system",
+    title: `📖 Chapter Completed: ${chapterName}`,
+    body: `${student.name} finished chapter "${chapterName}" in ${subjectName}!`,
+    fromName: student.name,
+    link: `/mentor?studentId=${student._id}`,
+  }).catch((e) => console.error("Mentor chapter notification error:", e));
+
+  return results;
+}
+
+

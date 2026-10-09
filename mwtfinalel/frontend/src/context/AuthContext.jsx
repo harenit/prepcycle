@@ -52,6 +52,15 @@ export function AuthProvider({ children }) {
     [persist]
   );
 
+  const loginWithGoogle = useCallback(
+    async (credential) => {
+      const data = await api.googleVerify(credential);
+      persist(data.user, data.token);
+      return data.user;
+    },
+    [persist]
+  );
+
   const register = useCallback(async (payload) => {
     const data = await api.register(payload);
     return data;
@@ -68,7 +77,7 @@ export function AuthProvider({ children }) {
     [persist, token]
   );
 
-  const value = { user, token, loading, login, register, logout, updateUser };
+  const value = { user, token, loading, login, loginWithGoogle, register, logout, updateUser };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

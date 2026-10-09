@@ -1,7 +1,7 @@
 import Exam from "../models/Exam.js";
 import Progress from "../models/Progress.js";
 import User from "../models/User.js";
-import { notifyMentorSubjectCompleted } from "../services/communicationService.js";
+import { notifyMentorSubjectCompleted, notifyMentorChapterCompleted } from "../services/communicationService.js";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -195,23 +195,30 @@ export async function setTopicStatus(req, res) {
 
   await progressDoc.save();
 
-  // Check if subject was completed and notify mentor
+  // Check if chapter or subject was completed and notify mentor
   let mentorAlert = null;
   if (status === "completed" && exam) {
+    let completedChapter = null;
     let completedSubject = null;
+    let parentSubjectName = "";
     for (const s of exam.subjects) {
-      const containsTopic = s.chapters.some((c) => c.topics.some((tp) => tp.id === req.params.topicId));
-      if (containsTopic) {
-        const allTopics = s.chapters.flatMap((c) => c.topics);
-        const allDone = allTopics.every((tp) => progressDoc.topicStatus.get(tp.id) === "completed");
-        if (allDone) {
+      const foundCh = s.chapters.find((c) => c.topics.some((tp) => tp.id === req.params.topicId));
+      if (foundCh) {
+        parentSubjectName = s.name;
+        const allChTopicsDone = foundCh.topics.every((tp) => progressDoc.topicStatus.get(tp.id) === "completed");
+        if (allChTopicsDone) {
+          completedChapter = foundCh;
+        }
+        const allSubTopics = s.chapters.flatMap((c) => c.topics);
+        const allSubTopicsDone = allSubTopics.every((tp) => progressDoc.topicStatus.get(tp.id) === "completed");
+        if (allSubTopicsDone) {
           completedSubject = s;
         }
         break;
       }
     }
 
-    if (completedSubject) {
+    if (completedChapter || completedSubject) {
       try {
         const student = await User.findById(req.user._id).populate("mentor");
         let mentor = student?.mentor;
@@ -219,16 +226,26 @@ export async function setTopicStatus(req, res) {
           mentor = await User.findOne({ role: "mentor" });
         }
         if (mentor) {
-          mentorAlert = await notifyMentorSubjectCompleted({
-            student,
-            mentor,
-            examSlug: exam.slug,
-            examName: exam.name,
-            subjectName: completedSubject.name,
-          });
+          if (completedSubject) {
+            mentorAlert = await notifyMentorSubjectCompleted({
+              student,
+              mentor,
+              examSlug: exam.slug,
+              examName: exam.name,
+              subjectName: completedSubject.name,
+            });
+          } else if (completedChapter) {
+            mentorAlert = await notifyMentorChapterCompleted({
+              student,
+              mentor,
+              examName: exam.name,
+              chapterName: completedChapter.name,
+              subjectName: parentSubjectName,
+            });
+          }
         }
       } catch (e) {
-        console.error("[progress] Failed to notify mentor on subject completion:", e.message);
+        console.error("[progress] Failed to notify mentor on milestone completion:", e.message);
       }
     }
   }

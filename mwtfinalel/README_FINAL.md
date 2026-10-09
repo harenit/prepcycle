@@ -48,6 +48,11 @@ Delivery account:
 - delivery@prepcycle.com
 - Password: `Delivery@12345`
 
+Mentor accounts:
+- mentor@prepcycle.com (Senior Mentor, WhatsApp: `+919876543210`)
+- mentor1@prepcycle.test (Science & Aptitude Mentor, WhatsApp: `+919876543211`)
+- Password: `Mentor@12345`
+
 Change seeded credentials before any real deployment.
 
 ## AI chatbot

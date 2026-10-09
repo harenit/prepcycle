@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import { signToken } from "../middleware/auth.js";
-import { notifyEvent } from "../services/communicationService.js";
+import { notifyEvent, notifyMentorStudentLogin } from "../services/communicationService.js";
 import jwt from "jsonwebtoken";
 
 function isValidEmail(email) {
@@ -38,7 +38,18 @@ export async function register(req, res) {
     password,
     role: "student",
     authProvider: "local",
+    registeredExams: ["gate-cse", "neet-ug"],
   });
+
+  const seniorMentor = await User.findOne({ role: "mentor" });
+  if (seniorMentor) {
+    user.mentor = seniorMentor._id;
+    if (!seniorMentor.assignedStudents.includes(user._id)) {
+      seniorMentor.assignedStudents.push(user._id);
+      await seniorMentor.save();
+    }
+    await user.save();
+  }
 
   const token = signToken(user);
   notifyEvent(user, "account_registration").catch(() => {});
@@ -57,13 +68,52 @@ export async function login(req, res) {
   }
 
   const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
-  if (!user || user.authProvider !== "local") {
+  if (!user) {
     return res.status(401).json({ message: "Invalid email or password." });
+  }
+
+  if (!user.password && user.authProvider === "google") {
+    return res.status(401).json({
+      message: "This account was registered using Google. Please click 'Continue with Google' to sign in.",
+    });
   }
 
   const ok = await user.comparePassword(password);
   if (!ok) {
     return res.status(401).json({ message: "Invalid email or password." });
+  }
+
+  // Ensure active student exams and mentor assignment so student details are never blank
+  if (user.role === "student") {
+    let changed = false;
+    if (!user.registeredExams || user.registeredExams.length === 0) {
+      user.registeredExams = ["gate-cse", "neet-ug"];
+      changed = true;
+    }
+    if (!user.mentor) {
+      const seniorMentor = await User.findOne({ role: "mentor" });
+      if (seniorMentor) {
+        user.mentor = seniorMentor._id;
+        if (!seniorMentor.assignedStudents.includes(user._id)) {
+          seniorMentor.assignedStudents.push(user._id);
+          await seniorMentor.save();
+        }
+        changed = true;
+      }
+    }
+    if (changed) await user.save();
+  }
+
+  // If student and has assigned mentor, notify mentor of daily study activity
+  if (user.role === "student" && user.mentor) {
+    User.findById(user._id)
+      .populate("mentor")
+      .then((pop) => {
+        if (pop?.mentor) {
+          notifyMentorStudentLogin({ student: pop, mentor: pop.mentor }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }
 
   const token = signToken(user);
@@ -190,7 +240,36 @@ export async function googleOAuthCallback(req, res) {
         email: profile.email.toLowerCase(),
         role: "student",
         authProvider: "google",
+        registeredExams: ["gate-cse", "neet-ug"],
       });
+    } else {
+      if (!user.registeredExams || user.registeredExams.length === 0) {
+        user.registeredExams = ["gate-cse", "neet-ug"];
+        await user.save();
+      }
+    }
+
+    if (user.role === "student" && !user.mentor) {
+      const seniorMentor = await User.findOne({ role: "mentor" });
+      if (seniorMentor) {
+        user.mentor = seniorMentor._id;
+        if (!seniorMentor.assignedStudents.includes(user._id)) {
+          seniorMentor.assignedStudents.push(user._id);
+          await seniorMentor.save();
+        }
+        await user.save();
+      }
+    }
+
+    if (user.role === "student" && user.mentor) {
+      User.findById(user._id)
+        .populate("mentor")
+        .then((pop) => {
+          if (pop?.mentor) {
+            notifyMentorStudentLogin({ student: pop, mentor: pop.mentor }).catch(() => {});
+          }
+        })
+        .catch(() => {});
     }
 
     const token = signToken(user);
@@ -198,6 +277,73 @@ export async function googleOAuthCallback(req, res) {
   } catch (err) {
     console.error("[OAuth Error]:", err);
     res.redirect(`${client}/login?oauth_error=${encodeURIComponent(err.message || "Google sign-in encountered an internal error.")}`);
+  }
+}
+
+/**
+ * POST /api/auth/google/verify
+ * Handles Google Identity Services ID token verification directly from the frontend
+ */
+export async function googleCredentialVerify(req, res) {
+  const { credential } = req.body || {};
+  if (!credential) {
+    return res.status(400).json({ message: "Google ID token credential is required." });
+  }
+
+  try {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    const verifyResp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const payload = await verifyResp.json();
+    if (!verifyResp.ok || !payload.email) {
+      return res.status(400).json({ message: payload.error_description || "Invalid Google ID token." });
+    }
+
+    const email = payload.email.toLowerCase();
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        name: payload.name || email.split("@")[0],
+        email,
+        role: "student",
+        authProvider: "google",
+        registeredExams: ["gate-cse", "neet-ug"],
+      });
+    } else {
+      if (!user.registeredExams || user.registeredExams.length === 0) {
+        user.registeredExams = ["gate-cse", "neet-ug"];
+        await user.save();
+      }
+    }
+
+    if (user.role === "student" && !user.mentor) {
+      const seniorMentor = await User.findOne({ role: "mentor" });
+      if (seniorMentor) {
+        user.mentor = seniorMentor._id;
+        if (!seniorMentor.assignedStudents.includes(user._id)) {
+          seniorMentor.assignedStudents.push(user._id);
+          await seniorMentor.save();
+        }
+        await user.save();
+      }
+    }
+
+    if (user.role === "student" && user.mentor) {
+      User.findById(user._id)
+        .populate("mentor")
+        .then((pop) => {
+          if (pop?.mentor) {
+            notifyMentorStudentLogin({ student: pop, mentor: pop.mentor }).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+
+    const token = signToken(user);
+    return res.status(200).json({ user, token, message: "Google authentication successful." });
+  } catch (err) {
+    console.error("[Google Verify Error]:", err);
+    return res.status(500).json({ message: err.message || "Failed to verify Google credential." });
   }
 }
 

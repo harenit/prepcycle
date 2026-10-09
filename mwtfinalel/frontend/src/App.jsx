@@ -46,7 +46,7 @@ export default function App() {
       <Route path="/resources" element={<ProtectedRoute><ResourcesPage /></ProtectedRoute>} />
       <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
       <Route path="/study-planner" element={<ProtectedRoute><StudyPlannerPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute requireStudent><SettingsPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute allowAll><SettingsPage /></ProtectedRoute>} />
 
       <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboardPage /></ProtectedRoute>} />
       <Route path="/delivery" element={<ProtectedRoute requireDelivery><DeliveryDashboardPage /></ProtectedRoute>} />

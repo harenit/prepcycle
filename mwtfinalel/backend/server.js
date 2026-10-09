@@ -81,6 +81,13 @@ app.use("/api", (req, res, next) => {
   next();
 });
 
+// Top-level aliases for Google OAuth callbacks
+app.get("/auth/google", (req, res) => res.redirect("/api/auth/oauth/google"));
+app.get("/auth/google/callback", (req, res) => {
+  const q = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  res.redirect(`/api/auth/oauth/google/callback${q}`);
+});
+
 app.use("/api/health", healthRoutes);
 app.use("/api/quotes", quoteRoutes);
 app.use("/api/auth", authRoutes);

@@ -32,6 +32,10 @@ export default function ExamExplorerPage() {
       ]);
       setExams(examsRes.exams);
       if (!categories.length) setCategories(catRes.categories);
+      // If no exams are registered yet, show all available exams so student sees catalog immediately
+      if (!examsRes.exams.some((e) => e.isRegistered) && !search && !category) {
+        setTab("unregistered");
+      }
     } catch (err) {
       setError(err.message);
     } finally {

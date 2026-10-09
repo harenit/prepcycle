@@ -1,17 +1,80 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import RegisterModal from "../components/RegisterModal";
 import Auth3DVisual from "../components/Auth3DVisual";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [gsiRendered, setGsiRendered] = useState(false);
+  const googleBtnRef = useRef(null);
+
+  // Initialize Google Identity Services (GSI) with user's real Google Client ID
+  useEffect(() => {
+    const clientId =
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      "280014334370-fht1emb3083aqp3r4qc37dq93nbn82v0.apps.googleusercontent.com";
+
+    function setupGsi() {
+      if (window.google?.accounts?.id && googleBtnRef.current) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (response) => {
+              if (!response?.credential) return;
+              setSubmitting(true);
+              setError("");
+              try {
+                const u = await loginWithGoogle(response.credential);
+                navigate(
+                  u.role === "admin"
+                    ? "/admin"
+                    : u.role === "delivery"
+                    ? "/delivery"
+                    : u.role === "mentor"
+                    ? "/mentor"
+                    : "/exam-explorer"
+                );
+              } catch (err) {
+                setError(err.message || "Google authentication failed. Please try again.");
+              } finally {
+                setSubmitting(false);
+              }
+            },
+            auto_select: false,
+          });
+
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: "outline",
+            size: "large",
+            width: 350,
+            text: "continue_with",
+            shape: "rectangular",
+            logo_alignment: "left",
+          });
+          setGsiRendered(true);
+        } catch (e) {
+          console.warn("GSI init notice:", e);
+        }
+      }
+    }
+
+    // Try immediately and retry after a short tick if SDK is loading
+    setupGsi();
+    const interval = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setupGsi();
+        clearInterval(interval);
+      }
+    }, 300);
+    return () => clearInterval(interval);
+  }, [loginWithGoogle, navigate]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -30,7 +93,13 @@ export default function LoginPage() {
         localStorage.setItem("prepcycle_auth", JSON.stringify({ user: d.user, token: oauthToken }));
         window.history.replaceState({}, "", "/login");
         window.location.href =
-          d.user.role === "admin" ? "/admin" : d.user.role === "delivery" ? "/delivery" : d.user.role === "mentor" ? "/mentor" : "/exam-explorer";
+          d.user.role === "admin"
+            ? "/admin"
+            : d.user.role === "delivery"
+            ? "/delivery"
+            : d.user.role === "mentor"
+            ? "/mentor"
+            : "/exam-explorer";
       })
       .catch(() => {});
   }, []);
@@ -41,10 +110,18 @@ export default function LoginPage() {
     if (!email || !password) return setError("Enter your email and password.");
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      navigate(user.role === "admin" ? "/admin" : user.role === "delivery" ? "/delivery" : user.role === "mentor" ? "/mentor" : "/exam-explorer");
+      const user = await login(email.trim(), password);
+      navigate(
+        user.role === "admin"
+          ? "/admin"
+          : user.role === "delivery"
+          ? "/delivery"
+          : user.role === "mentor"
+          ? "/mentor"
+          : "/exam-explorer"
+      );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Invalid credentials. Please verify and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -71,7 +148,7 @@ export default function LoginPage() {
           width: "100%",
           alignItems: "center",
           justifyContent: "center",
-          gap: "40px",
+          gap: "48px",
           zIndex: 2,
           flexWrap: "wrap",
         }}
@@ -94,44 +171,48 @@ export default function LoginPage() {
             <Auth3DVisual />
           </div>
           <div style={{ marginTop: "-20px" }}>
-            <h2 style={{ fontSize: "24px", fontWeight: 800, margin: "0", color: "#f8fafc", letterSpacing: "-0.02em" }}>
+            <h2 style={{ fontSize: "26px", fontWeight: 800, margin: "0", color: "#f8fafc", letterSpacing: "-0.02em" }}>
               Explore. Prepare. Conquer.
             </h2>
+            <p style={{ color: "#94a3b8", fontSize: "14px", marginTop: "8px", maxWidth: 380 }}>
+              The comprehensive competitive exam preparation and peer resource exchange platform.
+            </p>
           </div>
         </div>
 
-        {/* Login Form Card */}
+        {/* Real-World Clean Login Form Card */}
         <div
           className="pc-auth-card"
           style={{
             flex: "1 1 380px",
             maxWidth: "420px",
-            background: "rgba(30, 41, 59, 0.82)",
+            background: "rgba(30, 41, 59, 0.85)",
             backdropFilter: "blur(16px)",
             border: "1px solid rgba(255, 255, 255, 0.12)",
             borderRadius: "20px",
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)",
             color: "#ffffff",
-            padding: "32px",
+            padding: "36px 32px",
           }}
         >
           <div className="pc-auth-brand" style={{ color: "#ffffff", fontSize: "24px" }}>
             <span className="pc-logo-dot" />
             PrepCycle
           </div>
-          <p className="pc-auth-tagline" style={{ color: "#94a3b8", marginBottom: "20px" }}>
-            Your complete competitive exam preparation companion.
+          <p className="pc-auth-tagline" style={{ color: "#94a3b8", marginBottom: "24px" }}>
+            Sign in to access your account.
           </p>
 
           <form onSubmit={handleSubmit} className="pc-form">
             <label style={{ color: "#cbd5e1", fontSize: "13px" }}>
-              Email
+              Email Address
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="name@example.com"
                 autoComplete="email"
+                required
                 style={{
                   background: "rgba(15, 23, 42, 0.7)",
                   color: "#ffffff",
@@ -148,6 +229,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                required
                 style={{
                   background: "rgba(15, 23, 42, 0.7)",
                   color: "#ffffff",
@@ -167,66 +249,81 @@ export default function LoginPage() {
                 padding: "12px",
                 fontSize: "14px",
                 fontWeight: 700,
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
+                background: "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)",
+                boxShadow: "0 4px 12px rgba(79, 70, 229, 0.4)",
               }}
             >
               {submitting ? "Signing in…" : "Sign In"}
             </button>
           </form>
 
-          <div className="pc-divider" style={{ margin: "20px 0 16px" }}>
+          <div className="pc-divider" style={{ margin: "22px 0 16px" }}>
             <span style={{ color: "#64748b", background: "transparent" }}>or continue with</span>
           </div>
 
-          <div className="pc-social-row">
-            <a
-              className="pc-btn pc-btn-outline pc-btn-full"
-              href="/api/auth/oauth/google"
+          <div className="pc-social-row" style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+            {/* Google Identity Services Official Native Button */}
+            <div
+              ref={googleBtnRef}
               style={{
-                background: "#ffffff",
-                borderColor: "#e2e8f0",
-                color: "#1e293b",
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
+                width: "100%",
+                display: gsiRendered ? "flex" : "none",
                 justifyContent: "center",
-                gap: "10px",
-                padding: "10px 16px",
-                borderRadius: "10px",
-                boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
-                textDecoration: "none",
+                minHeight: "44px",
               }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span style={{ color: "#1e293b", fontWeight: 600 }}>Continue with Google</span>
-            </a>
+            />
+
+            {/* Render single button if GSI is loading or offline */}
+            {!gsiRendered && (
+              <a
+                className="pc-btn pc-btn-outline pc-btn-full"
+                href="/api/auth/oauth/google"
+                style={{
+                  background: "#ffffff",
+                  borderColor: "#cbd5e1",
+                  color: "#1e293b",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  padding: "10px 16px",
+                  borderRadius: "10px",
+                  boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+                  textDecoration: "none",
+                  fontSize: "14px",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </a>
+            )}
           </div>
 
-          <p className="pc-auth-footer" style={{ color: "#94a3b8", marginTop: "20px" }}>
-            New here?{" "}
+          <p className="pc-auth-footer" style={{ color: "#94a3b8", marginTop: "22px" }}>
+            Don't have an account?{" "}
             <button
               type="button"
               className="pc-link-btn"
               onClick={() => setShowRegister(true)}
-              style={{ color: "#60a5fa", fontWeight: 700 }}
+              style={{ color: "#818cf8", fontWeight: 700 }}
             >
               Create Account
             </button>
