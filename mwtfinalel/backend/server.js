@@ -14,6 +14,7 @@ process.on("uncaughtException", (err) => {
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 
@@ -121,8 +122,8 @@ app.use("/api", (req, res) => {
 // `npm run build` outputs frontend/dist. In production the same Node
 // process serves both the API (/api/*) and the static frontend, so only
 // one server needs to be deployed/hosted.
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "..", "frontend", "dist");
+const distPath = path.join(__dirname, "..", "frontend", "dist");
+if (process.env.NODE_ENV === "production" || fs.existsSync(distPath)) {
   app.use(express.static(distPath));
   app.get("*", (req, res) => {
     res.sendFile(path.join(distPath, "index.html"));
