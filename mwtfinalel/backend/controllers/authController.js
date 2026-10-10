@@ -181,9 +181,23 @@ export async function changePassword(req, res) {
 }
 
 
+function getRedirectUrl() {
+  if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
+  if (process.env.RENDER_EXTERNAL_URL) return `${process.env.RENDER_EXTERNAL_URL}/api/auth/oauth/google/callback`;
+  return "http://localhost:5000/api/auth/oauth/google/callback";
+}
+
+function getClientUrl() {
+  if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
+  if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL;
+  return "http://localhost:5173";
+}
+
 export function googleOAuthStart(req, res) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirect = process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/oauth/google/callback";
+  const clientId =
+    process.env.GOOGLE_CLIENT_ID ||
+    "280014334370-fht1emb3083aqp3r4qc37dq93nbn82v0.apps.googleusercontent.com";
+  const redirect = getRedirectUrl();
   if (!clientId) return res.status(503).send("Google OAuth is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to backend/.env.");
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
@@ -196,24 +210,27 @@ export function googleOAuthStart(req, res) {
 }
 
 export async function googleOAuthCallback(req, res) {
-  const client = process.env.CLIENT_URL || "http://localhost:5173";
+  const client = getClientUrl();
   try {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     const { code, error } = req.query;
     if (error) {
       return res.redirect(`${client}/login?oauth_error=${encodeURIComponent(`Google sign-in canceled or failed: ${error}`)}`);
     }
-    if (!code || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID ||
+      "280014334370-fht1emb3083aqp3r4qc37dq93nbn82v0.apps.googleusercontent.com";
+    if (!code || !clientId || !process.env.GOOGLE_CLIENT_SECRET) {
       return res.redirect(`${client}/login?oauth_error=${encodeURIComponent("Google OAuth credentials or authorization code missing.")}`);
     }
 
-    const redirect = process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/oauth/google/callback";
+    const redirect = getRedirectUrl();
     const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_id: clientId,
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
         redirect_uri: redirect,
         grant_type: "authorization_code",
